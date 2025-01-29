@@ -1,0 +1,8 @@
+.venv
+.idea
+__pycache__
+.env
+test.ipynb
+test.mp3
+test_gmm.mp3
+facebook
