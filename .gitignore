@@ -4,6 +4,7 @@ __pycache__
 .env
 
 facebook
+esp_http.py
 
 test.ipynb
 test.mp3
