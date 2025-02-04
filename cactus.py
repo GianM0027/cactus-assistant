@@ -12,18 +12,36 @@ class Cactus:
         self.gemini_token = gemini_token
         self.audio_processor = Wav2Vec2Processor.from_pretrained(audio_processing_path)
         self.audio_model = Wav2Vec2ForCTC.from_pretrained(audio_processing_path)
-        self.memory = CactusMemory()
+
+        self.chat_id = None
+        self._memory = CactusMemory()
+
+    def set_chat_id(self, chat_id):
+        self.chat_id = chat_id
+        self._memory.set_chat_id(chat_id)
+
+    def set_user_initialization_prompt(self, initialization_prompt):
+        self._memory.set_user_initialization_prompt(initialization_prompt)
+
+    def set_user_name(self, username):
+        self._memory.set_user_name(username)
+
+    def get_user_initialization_prompt(self):
+        return self._memory.get_user_initialization_prompt()
+
+    def get_user_name(self):
+        return self._memory.get_user_name()
 
     def get_gemini_response(self, request):
         genai.configure(api_key=self.gemini_token)
         model = genai.GenerativeModel("gemini-1.5-flash")
 
-        if self.memory.user_name != "":
-            username_info = f"The user name is {self.memory.user_name}"
+        if self._memory.get_user_name() != "":
+            username_info = f"The user name is {self._memory.get_user_name()}"
         else:
             username_info = ""
 
-        prompt = CACTUS_BASE_INSTRUCTIONS + username_info + self.memory.user_initialization_prompt + request
+        prompt = CACTUS_BASE_INSTRUCTIONS + username_info + self._memory.get_user_initialization_prompt() + request
 
         response = model.generate_content(prompt)
         return response.text

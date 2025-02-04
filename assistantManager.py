@@ -9,6 +9,8 @@ class AssistantManager:
         self.cactus = Cactus(audio_processing_path=audio_processing_path, gemini_token=gemini_token)
         self.gemini_token = gemini_token
 
+        self.chat_id = None
+
         self._awaiting_user_name = False
         self._awaiting_init_prompt = False
 
@@ -27,8 +29,9 @@ class AssistantManager:
     def setup_bot_handlers(self):
         @self.bot.message_handler(commands=['start'])
         def handle_start(message):
+            self.chat_id = message.chat.id
+            self.cactus.set_chat_id(self.chat_id)
             self.bot.reply_to(message, INITIAL_GREETING)
-            self._awaiting_user_name = True
 
         @self.bot.message_handler(commands=['init_prompt'])
         def set_llm_initialization_prompt(message):
@@ -43,7 +46,7 @@ class AssistantManager:
         # todo: funzione che mostra l'initialization prompt attualmente in uso
         @self.bot.message_handler(commands=['show_init'])
         def set_llm_initialization_prompt(message):
-            init_prompt = self.cactus.memory.user_initialization_prompt
+            init_prompt = self.cactus.get_user_initialization_prompt()
 
             if init_prompt != "":
                 pre = "Your current initialization prompt is:\n\n"
@@ -59,20 +62,28 @@ class AssistantManager:
 
             # user just entered the new initialization prompt
             if self._awaiting_init_prompt:
-                self.cactus.memory.set_user_initialization_prompt(message.text)
+                self.cactus.set_user_initialization_prompt(message.text)
                 self.bot.reply_to(message, INITIALIZATION_PROMPT_CONFIRMATION)
                 self._awaiting_init_prompt = False
 
             # user just entered the new username
             elif self._awaiting_user_name:
-                self.cactus.memory.set_user_name(message.text)
+                self.cactus.set_user_name(message.text)
                 self.bot.reply_to(message, f"Thanks {message.text}! " + USERNAME_CONFIRMATION)
                 self._awaiting_user_name = False
 
             # user is sending a new message
             else:
-                response = self.cactus.get_gemini_response(message.text)
-                self.bot.reply_to(message, response)
+
+                # check if an action is required
+                action_id = self.action_is_required(message.text)
+                if action_id is not None:
+                    self.perform_action(action_ID=action_id)
+
+                # if no action is required, get a response from the LLM
+                else:
+                    response = self.cactus.get_gemini_response(message.text)
+                    self.bot.reply_to(message, response)
 
     ###############################################################################################
     #
@@ -90,10 +101,14 @@ class AssistantManager:
 
     ###############################################################################################
     #
-    # Utils methods
+    # Action Performer
     #
     ###############################################################################################
 
     # todo: implement the function that given a user request decides what to do with it (send to cactus VS perform action)
     def action_is_required(self, request):
+        # return the actual action ID if an action is required
+        return None
+
+    def perform_action(self, action_ID):
         pass

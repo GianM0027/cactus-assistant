@@ -1,8 +1,10 @@
 {
-    "user_name": "",
-    "user_initialization_prompt": "",
-    "conversations": {
-        "user": [],
-        "cactus": []
+    "97900491": {
+        "conversations": {
+            "user": [],
+            "cactus": []
+        },
+        "user_initialization_prompt": "",
+        "user_name": "Jimmy"
     }
 }

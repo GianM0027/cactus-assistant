@@ -4,8 +4,7 @@ INITIAL_GREETING = (
     "\n- Set the address of the connection your cactus assistant will be connected to."
     "\n- Chat with the assistant and obtain written responses."
     "\n- Set the behavior of your assistant."
-    "\n- Access, modify or delete the assistant behavioral prompts and memory.json."
-    "\n\n How can I call you?")
+    "\n- Access, modify or delete the assistant behavioral prompts and memory.json.")
 
 CACTUS_BASE_INSTRUCTIONS = (
     "You are a smart desk assistant, you are cactus-shaped and you are always very useful."
