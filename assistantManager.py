@@ -4,15 +4,19 @@ from cactus import Cactus
 from prompts import *
 
 class AssistantManager:
-    def __init__(self, audio_processing_path, telegram_bot_token, huggingface_token):
+    def __init__(self, audio_processing_path, telegram_bot_token, gemini_token):
         self.bot = telebot.TeleBot(telegram_bot_token)
-        self.cactus_assistant = Cactus(audio_processing_path=audio_processing_path)
-        self.hf_token = huggingface_token
+        self.cactus = Cactus(audio_processing_path=audio_processing_path, gemini_token=gemini_token)
+        self.gemini_token = gemini_token
 
+        self._awaiting_user_name = False
+        self._awaiting_init_prompt = False
+
+        self.setup_bot_handlers()
         self._run_assistant()
 
     def _run_assistant(self):
-        self.run_telegram_bot()
+        self.bot.infinity_polling()
         self.run_cactus_assistant()
 
     ###############################################################################################
@@ -23,24 +27,52 @@ class AssistantManager:
     def setup_bot_handlers(self):
         @self.bot.message_handler(commands=['start'])
         def handle_start(message):
-            # todo: come primo messaggio chiedi nome dell'utente e salvalo in memoria
             self.bot.reply_to(message, INITIAL_GREETING)
-
-        @self.bot.message_handler(commands=['hf_api'])
-        def set_hf_token_api(message):
-            return "Functionality to implement"
+            self._awaiting_user_name = True
 
         @self.bot.message_handler(commands=['init_prompt'])
         def set_llm_initialization_prompt(message):
-            return "Functionality to implement"
+            self._awaiting_init_prompt = True
+            self.bot.reply_to(message, ASK_INITIALIZATION_PROMPT)
+
+        @self.bot.message_handler(commands=['username'])
+        def set_llm_initialization_prompt(message):
+            self._awaiting_user_name = True
+            self.bot.reply_to(message, ASK_USERNAME)
+
+        # todo: funzione che mostra l'initialization prompt attualmente in uso
+        @self.bot.message_handler(commands=['show_init'])
+        def set_llm_initialization_prompt(message):
+            init_prompt = self.cactus.memory.user_initialization_prompt
+
+            if init_prompt != "":
+                pre = "Your current initialization prompt is:\n\n"
+                post = "\n\nIs there something else I can do for you?"
+
+                self.bot.reply_to(message, pre + init_prompt + post)
+
+            else:
+                self.bot.reply_to(message, f"You did not set an initialization prompt. You can do so with the command \\init_prompt")
 
         @self.bot.message_handler(func=lambda msg: True)
         def handle_message(message):
-            self.bot.reply_to(message, self.cactus_assistant.get_inference_client_response(message.text, self.hf_token))
 
-    def run_telegram_bot(self):
-        self.setup_bot_handlers()
-        self.bot.infinity_polling()
+            # user just entered the new initialization prompt
+            if self._awaiting_init_prompt:
+                self.cactus.memory.set_user_initialization_prompt(message.text)
+                self.bot.reply_to(message, INITIALIZATION_PROMPT_CONFIRMATION)
+                self._awaiting_init_prompt = False
+
+            # user just entered the new username
+            elif self._awaiting_user_name:
+                self.cactus.memory.set_user_name(message.text)
+                self.bot.reply_to(message, f"Thanks {message.text}! " + USERNAME_CONFIRMATION)
+                self._awaiting_user_name = False
+
+            # user is sending a new message
+            else:
+                response = self.cactus.get_gemini_response(message.text)
+                self.bot.reply_to(message, response)
 
     ###############################################################################################
     #
