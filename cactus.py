@@ -1,53 +1,32 @@
-from huggingface_hub import InferenceClient
-import os
-import requests
 from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
 import torch
 import librosa
 from gtts import gTTS
 from cactus_memory import CactusMemory
+import google.generativeai as genai
+from prompts import *
 
 
 class Cactus:
-    def __init__(self, audio_processing_path):
+    def __init__(self, audio_processing_path, gemini_token):
+        self.gemini_token = gemini_token
         self.audio_processor = Wav2Vec2Processor.from_pretrained(audio_processing_path)
         self.audio_model = Wav2Vec2ForCTC.from_pretrained(audio_processing_path)
         self.memory = CactusMemory()
 
-    def get_gemma_response(self, prompt):
-        API_URL = "https://api-inference.huggingface.co/models/google/gemma-2-9b-it"
-        headers = {"Authorization": f"Bearer {os.getenv('CACTUS_TOKEN')}"}
+    def get_gemini_response(self, request):
+        genai.configure(api_key=self.gemini_token)
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
-        payload = {"inputs": prompt}
-        response = requests.post(API_URL, headers=headers, json=payload)
-        data = response.json()
+        if self.memory.user_name != "":
+            username_info = f"The user name is {self.memory.user_name}"
+        else:
+            username_info = ""
 
-        try:
-            generated_text = data[0]["generated_text"]
-        except KeyError:
-            generated_text = data.get("error", "Unable to retrieve an answer")
+        prompt = CACTUS_BASE_INSTRUCTIONS + username_info + self.memory.user_initialization_prompt + request
 
-        response_text = generated_text.split(prompt)[-1]
-
-        return response_text
-
-    def get_inference_client_response(self, prompt, token):
-        client = InferenceClient(api_key=token)
-
-        messages = [
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-
-        completion = client.chat.completions.create(
-            model="Qwen/QwQ-32B-Preview",
-            messages=messages,
-            max_tokens=1024
-        )
-
-        return completion.choices[0].message.content
+        response = model.generate_content(prompt)
+        return response.text
 
     def from_audio_to_text(self, audio_path):
         audio, sample_rate = librosa.load(audio_path, sr=16000)

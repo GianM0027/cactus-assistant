@@ -1,32 +1,32 @@
-from prompts import CACTUS_INSTRUCTIONS
+import json
 
+# todo: capire come gestire le conversazioni, quante ne salviamo? In base a cosa decidiamo come tenerle e recuperarle?
 
 class CactusMemory:
-    def __init__(self, user_preference_prompt=""):
-        self.conversations = {"user": [], "cactus": []}
-        self.user_preference_prompt = user_preference_prompt
-        self.user_name = ""
+    def __init__(self):
+        with open("memory.json", "r") as file:
+            self._memory = json.load(file)
 
-    def store_conversation(self, request, response):
-        self.conversations["user"].append(request)
-        self.conversations["cactus"].append(response)
+        self.conversations = self._memory["conversations"]
+        self.user_initialization_prompt = self._memory["user_initialization_prompt"]
+        self.user_name = self._memory["user_name"]
 
-    def get_conversations_chat_template(self, new_request):
-        user_requests = [{"role": "user", "content": request} for request in self.conversations["user"]]
-        cactus_responses = [{"role": "assistant", "content": response} for response in self.conversations["cactus"]]
+    def store_conversation(self, message, response):
+        self.conversations["user"].extend(message)
+        self.conversations["cactus"].extend(response)
+        self._memory["conversations"] = self.conversations
+        self.save_to_memory()
 
-        chat = []
-        for i in range(len(user_requests)):
-            chat.append(user_requests[i])
-            chat.append(cactus_responses[i])
-        chat.append({"role": "user", "content": new_request})
+    def set_user_initialization_prompt(self, new_initialization_prompt):
+        self.user_initialization_prompt = new_initialization_prompt
+        self._memory["user_initialization_prompt"] = new_initialization_prompt
+        self.save_to_memory()
 
-        chat_template = [
-            {
-                "role": "system",
-                "content": CACTUS_INSTRUCTIONS + "\n" + self.user_preference_prompt,
-            },
-            chat
-        ]
+    def set_user_name(self, new_user_name):
+        self.user_name = new_user_name
+        self._memory["user_name"] = new_user_name
+        self.save_to_memory()
 
-        return chat_template
+    def save_to_memory(self):
+        with open("memory.json", "w") as outfile:
+            json.dump(self._memory, outfile, indent=4)
