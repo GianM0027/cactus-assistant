@@ -32,16 +32,20 @@ class Cactus:
     def get_user_name(self):
         return self._memory.get_user_name()
 
-    def get_gemini_response(self, request):
+    def get_gemini_response(self, request, use_initialization_prompts=True):
         genai.configure(api_key=self.gemini_token)
         model = genai.GenerativeModel("gemini-1.5-flash")
 
-        if self._memory.get_user_name() != "":
-            username_info = f"The user name is {self._memory.get_user_name()}"
-        else:
-            username_info = ""
+        if use_initialization_prompts:
+            if self._memory.get_user_name() != "":
+                username_info = f"The user name is {self._memory.get_user_name()}"
+            else:
+                username_info = ""
 
-        prompt = CACTUS_BASE_INSTRUCTIONS + username_info + self._memory.get_user_initialization_prompt() + request
+            user_init_prompt = self._memory.get_user_initialization_prompt()
+            prompt = CACTUS_BASE_INSTRUCTIONS + username_info + user_init_prompt + request
+        else:
+            prompt = request
 
         response = model.generate_content(prompt)
         return response.text

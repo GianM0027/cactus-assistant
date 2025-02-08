@@ -12,6 +12,7 @@ class CactusMemory:
 
     def set_chat_id(self, chat_id):
         self._chat_id = chat_id
+        self.save_to_memory()
 
     def store_conversation(self, message, response):
         self._conversations["user"].extend(message)
