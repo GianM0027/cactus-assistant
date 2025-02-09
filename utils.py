@@ -9,7 +9,7 @@ def extract_between_braces(text):
     return None
 
 def format_datetime_natural(date_time):
-    day = date_time.strftime("%-d") if date_time.day >= 10 else date_time.strftime("%d")
+    day = date_time.strftime("%d").lstrip("0")
     month = date_time.strftime("%B")
     time = date_time.strftime("%H:%M")
 
