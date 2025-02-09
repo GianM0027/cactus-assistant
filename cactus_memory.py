@@ -35,6 +35,10 @@ class CactusMemory:
     def _ensure_memory_file(self, chat_id):
         """Ensures the memory file exists."""
         user_data_path = self._get_user_data_path(chat_id)
+
+        if not os.path.exists(self.memory_folder):
+            os.makedirs(self.memory_folder)
+
         if not os.path.exists(user_data_path):
             self.save_to_memory(chat_id, self.user_data_structure)
 
