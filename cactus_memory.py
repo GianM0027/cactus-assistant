@@ -2,6 +2,8 @@ import json
 import os
 from datetime import datetime
 
+import numpy as np
+
 
 # todo: aggiungere last interaction tag, if a file havent been accessed in X time, delete it
 
@@ -13,11 +15,13 @@ class CactusMemory:
         self.user_reminders_key = "user_reminders"
         self.user_initialization_prompt_key = "user_initialization_prompt"
         self.user_name_key = "user_name"
+        self.user_timers_key = "timers"
         self.user_language_preference_key = "language_preference"
         self.user_voice_preference_key = "voice_preference"
 
         self.user_data_structure = {
             self.user_reminders_key: [],
+            self.user_timers_key: [],
             self.user_initialization_prompt_key: "",
             self.user_name_key: "",
             self.user_language_preference_key: "english",
@@ -56,11 +60,22 @@ class CactusMemory:
     def set_reminder(self, chat_id, reminder):
         user_data = self.get_user_data(chat_id)
 
+        # conver datetime to JSON compatible format
         if isinstance(reminder, dict) and "date_time" in reminder:
             if isinstance(reminder["date_time"], datetime):
-                reminder["date_time"] = reminder["date_time"].isoformat()  # Convert to string
+                reminder["date_time"] = reminder["date_time"].isoformat()
 
         user_data[self.user_reminders_key].append(reminder)
+        self.save_to_memory(chat_id, user_data)
+
+    def set_timer(self, chat_id, timer):
+        user_data = self.get_user_data(chat_id)
+
+        if isinstance(timer, dict) and "date_time" in timer:
+            if isinstance(timer["date_time"], datetime):
+                timer["date_time"] = timer["date_time"].isoformat()
+
+        user_data[self.user_timers_key].append(timer)
         self.save_to_memory(chat_id, user_data)
 
     def set_user_initialization_prompt(self, chat_id, prompt):
@@ -117,6 +132,20 @@ class CactusMemory:
                     pass
 
         return reminders
+
+    def get_user_timers(self, chat_id):
+        user_data = self.get_user_data(chat_id)
+
+        timers = user_data.get(self.user_timers_key, [])
+        # Convert date_time back to datetime object
+        for timer in timers:
+            if isinstance(timer, dict) and "date_time" in timer:
+                try:
+                    timer["date_time"] = datetime.fromisoformat(timer["date_time"])
+                except ValueError:
+                    pass
+
+        return timers
 
     def get_user_initialization_prompt(self, chat_id):
         """Retrieves the user's initialization prompt."""

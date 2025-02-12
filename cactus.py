@@ -3,7 +3,7 @@ import torch
 import librosa
 from cactus_memory import CactusMemory
 import google.generativeai as genai
-from prompts import *
+from prompts_and_constants import *
 
 class Cactus:
     def __init__(self, audio_processing_path, gemini_token):
@@ -18,24 +18,46 @@ class Cactus:
     def get_user_reminders(self, chat_id):
         return self.cactus_memory.get_user_reminders(chat_id)
 
+    def get_user_timers(self, chat_id):
+        return self.cactus_memory.get_user_timers(chat_id)
+
     def get_all_users_reminders(self):
         users_reminders = []
         users_data = self.cactus_memory.get_all_users_data()
         for id, data in users_data.items():
-            for reminder in data["user_reminders"]:
+            for reminder in data[self.cactus_memory.user_reminders_key]:
                 users_reminders.append(reminder)
         return users_reminders
 
     def remove_reminder(self, chat_id, reminder_id):
         users_data = self.cactus_memory.get_user_data(chat_id=chat_id)
-        for reminder in users_data["user_reminders"]:
+        for reminder in users_data[self.cactus_memory.user_reminders_key]:
             if str(reminder["reminder_id"]) == str(reminder_id):
-                users_data["user_reminders"].remove(reminder)
+                users_data[self.cactus_memory.user_reminders_key].remove(reminder)
                 break
         self.cactus_memory.save_to_memory(chat_id, users_data)
 
+    def remove_timer(self, chat_id, timer_id):
+        users_data = self.cactus_memory.get_user_data(chat_id=chat_id)
+        for timer in users_data[self.cactus_memory.user_timers_key]:
+            if str(timer["timer_id"]) == str(timer_id):
+                users_data[self.cactus_memory.user_timers_key].remove(timer)
+                break
+        self.cactus_memory.save_to_memory(chat_id, users_data)
+
+    def get_all_users_timers(self):
+        users_timers = []
+        users_data = self.cactus_memory.get_all_users_data()
+        for id, data in users_data.items():
+            for timer in data[self.cactus_memory.user_timers_key]:
+                users_timers.append(timer)
+        return users_timers
+
     def set_reminder(self, chat_id, reminder):
         self.cactus_memory.set_reminder(chat_id=chat_id, reminder=reminder)
+
+    def set_timer(self, chat_id, timer):
+        self.cactus_memory.set_timer(chat_id=chat_id, timer=timer)
 
     def set_user_name(self, chat_id, username):
         self.cactus_memory.set_user_name(chat_id=chat_id, name=username)
@@ -58,23 +80,35 @@ class Cactus:
     def set_user_language_preference(self, chat_id, language_preference):
         return self.cactus_memory.set_user_language_preference(chat_id=chat_id, language_preference=language_preference)
 
-    def get_gemini_response(self, request, chat_id=None, use_initialization_prompts=True):
+    def get_string_user_info(self, chat_id):
+        user_name = self.cactus_memory.get_user_name(chat_id)
+        user_initialization_prompt = self.cactus_memory.get_user_initialization_prompt(chat_id=chat_id)
+        reminders = self.cactus_memory.get_user_reminders(chat_id)
+        timers = self.cactus_memory.get_user_reminders(chat_id)
+
+        intro_prompt = "USER INFORMATION: "
+
+        user_name_prompt = f"\n- The user set an username: {user_name}." if user_name else \
+            "\n- The user did not set a username. This action can be performed on the telegram bot."
+
+        init_prompt = f"\n- The user set an initialization prompt: '{user_initialization_prompt}'" if user_initialization_prompt else \
+            "\n- The user did not set an initialization prompt for the system. This action can be performed on the telegram bot."
+
+        reminders_prompt = f"\n- The user has the following active reminders: {str(reminders)}" if reminders else \
+            "\n- The user doesn't have any active reminders set. This can be set from bot the telegram bot or speaking to the cactus."
+
+        timers_prompt = f"\n- The user has the following active timers: {str(timers)}" if timers else \
+            "\n- The user doesn't have any active timers set. This can be set from bot the telegram bot or speaking to the cactus."
+
+        optional_info = user_name_prompt + init_prompt + reminders_prompt + timers_prompt
+
+        return intro_prompt + optional_info
+
+
+    def get_gemini_response(self, request, initialization_prompt=""):
         genai.configure(api_key=self.gemini_token)
         model = genai.GenerativeModel("gemini-1.5-flash")
-
-        # Warning for Developer
-        if use_initialization_prompts and chat_id is None:
-            print("WARNING! Gemini (get_gemini_response) is not able to access the user data. Set 'chat_id'")
-
-        if use_initialization_prompts and chat_id:
-            username = self.cactus_memory.get_user_name(chat_id)
-            user_init_prompt = self.cactus_memory.get_user_initialization_prompt(chat_id)
-            username_info = f"The user name is {username}. " if username else ""
-            prompt = CACTUS_BASE_INSTRUCTIONS + username_info + user_init_prompt + request
-        else:
-            prompt = request
-
-        response = model.generate_content(prompt)
+        response = model.generate_content(initialization_prompt+request)
         return response.text
 
     def from_audio_to_text(self, audio_path):
