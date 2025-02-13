@@ -1,6 +1,8 @@
 import asyncio
 import json
+import os
 import time
+import requests
 
 import numpy as np
 import telebot
@@ -12,15 +14,16 @@ from prompts_and_constants import *
 from utils import *
 from datetime import datetime
 import threading
-
+from influxdb_client_3 import Point
 
 # todo: ricontrolla tempo dei reminder e dei timer, li imposta in maniera errata (timer aggiustato, check reminder)
 
 class AssistantManager:
-    def __init__(self, audio_processing_path, telegram_bot_token, gemini_token):
+    def __init__(self, audio_processing_path, telegram_bot_token, gemini_token, influxdb_client):
         self.bot = telebot.TeleBot(telegram_bot_token)
         self.cactus = Cactus(audio_processing_path=audio_processing_path, gemini_token=gemini_token)
         self.gemini_token = gemini_token
+        self.influxdb_client = influxdb_client
 
         # awaiting tags, to set when the telegram bot need to wait an answer from the user
         self._awaiting_user_name = False
@@ -38,9 +41,8 @@ class AssistantManager:
         bot_thread = threading.Thread(target=self.bot.infinity_polling, daemon=True)
         bot_thread.start()
         asyncio.run(self.check_timers_and_reminders())
-
+        asyncio.run(self.run_cactus_assistant())
         self.bot.infinity_polling()
-        self.run_cactus_assistant()
 
     ###############################################################################################
     #
@@ -213,12 +215,15 @@ class AssistantManager:
                 else:
                     username = self.cactus.get_user_name(chat_id=message.chat.id)
                     user_init_prompt = self.cactus.get_user_initialization_prompt(message.chat.id)
+                    temperature, humidity = self.get_current_temperature_humidity()
                     intro_to_user_message = "\n\n## USER MESSAGE:\n"
 
                     # user asked for information about its data
-                    if USER_INFO_ID in action_id:
+                    if SYSTEM_INFO_ID in action_id:
                         system_initialization_prompt = get_cactus_base_instructions_short(sender=BOT_SENDER_ID,
                                                                                           user_name=username,
+                                                                                          temperature=temperature,
+                                                                                          humidity=humidity,
                                                                                           user_initialization_prompt=user_init_prompt)
                         user_info = self.cactus.get_string_user_info(message.chat.id)
                         init_prompt = system_initialization_prompt + user_info + intro_to_user_message
@@ -230,6 +235,8 @@ class AssistantManager:
                     elif NO_ACTION_REQUIRED_ID in action_id:
                         system_initialization_prompt = get_cactus_base_instructions(sender=BOT_SENDER_ID,
                                                                                     user_name=username,
+                                                                                    temperature=temperature,
+                                                                                    humidity=humidity,
                                                                                     user_initialization_prompt=user_init_prompt)
                         init_prompt = system_initialization_prompt + intro_to_user_message
                         llm_response = self.cactus.get_gemini_response(request=message.text,
@@ -244,11 +251,49 @@ class AssistantManager:
     ###############################################################################################
     # todo: implement the function that starts the physical cactus assistant (the ESP) and handles the data
     #  MAURO PUò TOCCARE QUESTE FUNZIONI AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    def run_cactus_assistant(self):
+    async def run_cactus_assistant(self):
+        asyncio.run(self.get_sensor_data())
         print("Cactus su uno skateboard!!!")
 
-    def mau_decidi_tu_la_logica_di_queste_funzioni_che_fanno_https_con_ESP(self):
-        pass
+    async def get_sensor_data(self):
+        # todo: codice che riceve temperatura e umidità dall'arduino
+        while True:
+            await asyncio.sleep(SECONDS_DELAY_SENSOR_DATA)
+            try:
+                response = requests.get(f"{os.getenv('ESP32_IP')}/sensor", timeout=5)
+                temperature = response.text["temperature"]
+                humidity = response.text["humidity"]
+
+                point = (
+                    Point("sensor")
+                    .field("temperature", temperature)
+                )
+                self.influxdb_client.write(database="cactus_sensor_data", record=point)
+                time.sleep(1)
+                point = (
+                    Point("sensor")
+                    .field("humidity", humidity)
+                )
+                self.influxdb_client.write(database="cactus_sensor_data", record=point)
+
+            except requests.exceptions.Timeout:
+                print("ERROR: Response timeout while fetching sensor data.")
+            except requests.exceptions.RequestException as e:
+                print(f"Failed to fetch sensor data: {e}")
+
+    def get_influxdb_data(self):
+        query = ("SELECT *"
+                 "FROM 'census'"
+                 "WHERE time >= now() - interval '24 hours'"
+                 "AND ('bees' IS NOT NULL OR 'ants' IS NOT NULL)")
+
+        # Execute the query
+        table = self.influxdb_client.query(query=query, database="cactus_sensor_data", language='sql')
+
+        # Convert to dataframe
+        df = table.to_pandas().sort_values(by="time")
+
+        #todo farci qualcosa con questo dataframe
 
     ###############################################################################################
     #
@@ -261,6 +306,12 @@ class AssistantManager:
                                                      initialization_prompt=CHECK_ACTION_IS_REQUIRED_PROMPT + user_request_intro)
 
         return llm_answer
+
+    def get_current_temperature_humidity(self):
+        # todo: implementare funzione che prende temperatura e uumidituà su richiesta
+
+
+        return None, None # (temperatura, umidità)
 
     def reset_new_reminder(self):
         self.reminder_id = np.random.randint(1000000000)
@@ -297,8 +348,9 @@ class AssistantManager:
     def set_timer(self, request, chat_id):
         llm_response = self.cactus.get_gemini_response(request=get_timer_set_prompt(request),
                                                        initialization_prompt="")
+
         action_dict = json.loads(extract_between_braces(llm_response))
-        timer_date_time = extract_exact_datetime(action_dict)
+        timer_date_time = extract_exact_datetime(action_dict, bot=self.bot, chat_id=chat_id)
 
         if timer_date_time:
             timer_id = len(self.cactus.get_user_timers(chat_id))+1
@@ -306,7 +358,7 @@ class AssistantManager:
             self.cactus.set_timer(chat_id=chat_id, timer=new_timer)
 
             # Send confirmation message
-            self.bot.send_message(chat_id, f"{parse_time_delay(timer_date_time)} timer confirmed! ✅")
+            self.bot.send_message(chat_id, f"{parse_time_delay(action_dict['time_value'])} timer confirmed! ✅")
         else:
             repeat_message = "Sorry, I did not understand, can you rephrase the request clarifying the time?"
             self.bot.send_message(chat_id, repeat_message)
