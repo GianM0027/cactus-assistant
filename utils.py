@@ -120,3 +120,8 @@ def parse_time_delay(time_str):
         return parts[0]
     else:
         return ', '.join(parts[:-1]) + ' and ' + parts[-1]
+
+def get_current_datetime():
+    now = datetime.now()
+    return f"Today is {now.day} {now.strftime('%B')} {now.year}, it's currently {now.hour}:{now.minute:02d}"
+

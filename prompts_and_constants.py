@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from utils import get_current_datetime
 
 ###############################################################################################################
 #
@@ -8,23 +9,28 @@ from datetime import datetime, timedelta
 ###############################################################################################################
 REMINDER_ACTION_ID = "<<reminder>>"
 TIMER_ACTION_ID = "<<timer>>"
-USER_INFO_ID = "<<user_info>>"
+SYSTEM_INFO_ID = "<<system_info>>"
 NO_ACTION_REQUIRED_ID = "<<llm_answer>>"
 
 BOT_SENDER_ID = "bot"
 CACTUS_SENDER_ID = "cactus"
 
+SECONDS_DELAY_SENSOR_DATA = 60
+
 
 
 INITIAL_GREETING = ("Hi! I am your smart cactus! How can I help you?") # todo: aggiungere info su cosa fa il sistema
 
-# todo: controllare se gemini ha bisogno di più informazioni (e.g. ora/giorno/meteo)
+# todo: controllare se gemini ha bisogno di più informazioni (e.g. meteo)
 
-def get_cactus_base_instructions(sender, user_name=None, user_initialization_prompt=None):
-    user_intro = f"The user's name is {user_name}. " if user_name else ""
-    sender_info = f"The user is sending the following request from the {'telegram bot' if sender == BOT_SENDER_ID else 'physical system'}"
-    init_prompt = f"Follow the user's initialization prompt: {user_initialization_prompt}. " if user_initialization_prompt else ""
+def get_cactus_base_instructions(sender, temperature, humidity, user_name=None, user_initialization_prompt=None):
+    user_intro = f"- The user's name is {user_name}. " if user_name else ""
+    sender_info = f"- The user is sending the following request from the {'telegram bot' if sender == BOT_SENDER_ID else 'physical system'}"
+    init_prompt = f"- Follow the user's initialization prompt: {user_initialization_prompt}. " if user_initialization_prompt else ""
+    temp_hum_info = f"- Currently it is {temperature} degrees, the humidity is {humidity}%"
+    date_time_info = get_current_datetime()
 
+    # todo: gestire temperatura e umidità None
     return (
             "## ASSISTANT OVERVIEW\n"
             "You are a friendly, cactus-shaped smart desk assistant, integrated into both a physical system and a Telegram bot. "
@@ -50,20 +56,24 @@ def get_cactus_base_instructions(sender, user_name=None, user_initialization_pro
             "- You will be informed whether the user is interacting via the physical system or the Telegram bot.\n"
             "- If a user requests an action not supported on the current platform (e.g., changing voice preference via the physical system), "
             "inform them politely and direct them to the appropriate platform.\n\n"
+            
+            "## OPTIONAL INFORMATION\n"
+            f"{date_time_info}"
+            f"{sender_info}\n"
+            f"{temp_hum_info}\n\n"
 
             "## USER-SPECIFIC INFORMATION\n"
-            + user_intro + "\n" + sender_info + "\n\n"
-
-           "## USER-SPECIFIC INSTRUCTIONS\n"
-            + init_prompt
-
+            f"{user_intro}\n"
+            f"{init_prompt}\n\n"
     )
 
 
-def get_cactus_base_instructions_short(sender, user_name=None, user_initialization_prompt=None):
+def get_cactus_base_instructions_short(sender, temperature, humidity, user_name=None, user_initialization_prompt=None):
     user_intro = f"The user's name is {user_name}. " if user_name else ""
     sender_info = f"Request sent from {'Telegram bot' if sender == BOT_SENDER_ID else 'physical system'}."
     init_prompt = f"Follow the user's initialization prompt: {user_initialization_prompt}. " if user_initialization_prompt else ""
+    temp_hum_info = f"Currently it is {temperature} degrees, the humidity is {humidity}%"
+    date_time_info = get_current_datetime()
 
     return (
             "## ASSISTANT OVERVIEW\n"
@@ -82,21 +92,26 @@ def get_cactus_base_instructions_short(sender, user_name=None, user_initializati
             "- Set a username and initialization prompt.\n\n"
 
             "## RULES\n"
-            f"- {sender_info}\n"
             "- Redirect users if a request isn't supported on the current platform.\n\n"
+            
+            "## OPTIONAL INFORMATION\n"
+            f"- {date_time_info}"
+            f"- {sender_info}\n"
+            f"- {temp_hum_info}\n\n"
 
-            "## USER-SPECIFIC INSTRUCTIONS\n"
-            + user_intro + init_prompt
+            "## USER-SPECIFIC INFORMATION\n"
+            f"- {user_intro}\n"
+            f"- {init_prompt}\n\n"
     )
 
 
 CHECK_ACTION_IS_REQUIRED_PROMPT = (
     "Classify the user's message into one of the following categories and respond **only** with the corresponding tag:"
-    "\n\n1. **Set a Reminder**: If the user requests to schedule, set, or create a reminder → Reply with '<<reminder>>'"
-    "\n2. **Set a Timer**: If the user asks to start, set, or create a timer → Reply with '<<timer>>'"
-    "\n3. **Ask about Personal Information**: If the user inquires about their username, initialization prompt, reminders, or timers → Reply with '<<user_info>>'"
-    "\n4. **Other Requests**: If the request does not match any of the above categories → Reply with '<<llm_answer>>'"
-    "\n\nRespond with the tag **only**—no additional text."
+    f"\n\n1. **Set a Reminder**: If the user requests to schedule, set, or create a reminder → Reply with '{REMINDER_ACTION_ID}'"
+    f"\n2. **Set a Timer**: If the user asks to start, set, or create a timer → Reply with '{TIMER_ACTION_ID}'"
+    f"\n3. **Ask about System Information**: If the user inquires about their username, initialization prompt, reminders, timers, temperature or humidity → Reply with '{SYSTEM_INFO_ID}'"
+    f"\n5. **Other Requests**: If the request does not match any of the above categories → Reply with '{NO_ACTION_REQUIRED_ID}'"
+    f"\n\nRespond with the tag **only**—no additional text."
 )
 
 
