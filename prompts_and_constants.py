@@ -27,10 +27,10 @@ def get_cactus_base_instructions(sender, temperature, humidity, user_name=None, 
     user_intro = f"- The user's name is {user_name}. " if user_name else ""
     sender_info = f"- The user is sending the following request from the {'telegram bot' if sender == BOT_SENDER_ID else 'physical system'}"
     init_prompt = f"- Follow the user's initialization prompt: {user_initialization_prompt}. " if user_initialization_prompt else ""
-    temp_hum_info = f"- Currently it is {temperature} degrees, the humidity is {humidity}%"
+    temp_info = f"- Currently it is {temperature} degrees" if temperature else ""
+    hum_info = f"- Currently the humidity is {humidity}%" if humidity else ""
     date_time_info = get_current_datetime()
 
-    # todo: gestire temperatura e umidità None
     return (
             "## ASSISTANT OVERVIEW\n"
             "You are a friendly, cactus-shaped smart desk assistant, integrated into both a physical system and a Telegram bot. "
@@ -60,7 +60,8 @@ def get_cactus_base_instructions(sender, temperature, humidity, user_name=None, 
             "## OPTIONAL INFORMATION\n"
             f"{date_time_info}"
             f"{sender_info}\n"
-            f"{temp_hum_info}\n\n"
+            f"{temp_info}\n"
+            f"{hum_info}\n\n"
 
             "## USER-SPECIFIC INFORMATION\n"
             f"{user_intro}\n"
@@ -72,7 +73,8 @@ def get_cactus_base_instructions_short(sender, temperature, humidity, user_name=
     user_intro = f"The user's name is {user_name}. " if user_name else ""
     sender_info = f"Request sent from {'Telegram bot' if sender == BOT_SENDER_ID else 'physical system'}."
     init_prompt = f"Follow the user's initialization prompt: {user_initialization_prompt}. " if user_initialization_prompt else ""
-    temp_hum_info = f"Currently it is {temperature} degrees, the humidity is {humidity}%"
+    temp_info = f"- Currently it is {temperature} degrees" if temperature else ""
+    hum_info = f"- Currently the humidity is {humidity}%" if humidity else ""
     date_time_info = get_current_datetime()
 
     return (
@@ -95,9 +97,10 @@ def get_cactus_base_instructions_short(sender, temperature, humidity, user_name=
             "- Redirect users if a request isn't supported on the current platform.\n\n"
             
             "## OPTIONAL INFORMATION\n"
-            f"- {date_time_info}"
-            f"- {sender_info}\n"
-            f"- {temp_hum_info}\n\n"
+            f"{date_time_info}"
+            f"{sender_info}\n"
+            f"{temp_info}\n"
+            f"{hum_info}\n\n"
 
             "## USER-SPECIFIC INFORMATION\n"
             f"- {user_intro}\n"

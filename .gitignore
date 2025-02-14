@@ -6,6 +6,7 @@ __pycache__
 facebook
 esp_http.py
 memory
+*.wav
 
 test.ipynb
 test.mp3
