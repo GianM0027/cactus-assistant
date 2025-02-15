@@ -10,7 +10,7 @@ import numpy as np
 class CactusMemory:
 
     def __init__(self):
-        self.memory_folder = "memory"
+        self.memory_path = "local_memory.json"
 
         self.user_reminders_key = "user_reminders"
         self.user_initialization_prompt_key = "user_initialization_prompt"
@@ -18,6 +18,7 @@ class CactusMemory:
         self.user_timers_key = "timers"
         self.user_language_preference_key = "language_preference"
         self.user_voice_preference_key = "voice_preference"
+        self.user_chat_id_key = "chat_id"
 
         self.user_data_structure = {
             self.user_reminders_key: [],
@@ -25,31 +26,22 @@ class CactusMemory:
             self.user_initialization_prompt_key: "",
             self.user_name_key: "",
             self.user_language_preference_key: "english",
-            self.user_voice_preference_key: "male"
+            self.user_voice_preference_key: "male",
+            self.user_chat_id_key: "",
         }
+
+        # Ensures the memory file exists.
+        if not os.path.exists(self.memory_path):
+            self.save_to_memory(data=self.user_data_structure)
 
     ################################################################################################################
     #
     # Auxiliary Methods
     #
     ################################################################################################################
-    def _get_user_data_path(self, chat_id):
-        return os.path.join(self.memory_folder, f"memory_chat_{chat_id}.json")
-
-    def _ensure_memory_file(self, chat_id):
-        """Ensures the memory file exists."""
-        user_data_path = self._get_user_data_path(chat_id)
-
-        if not os.path.exists(self.memory_folder):
-            os.makedirs(self.memory_folder)
-
-        if not os.path.exists(user_data_path):
-            self.save_to_memory(chat_id, self.user_data_structure)
-
-    def save_to_memory(self, chat_id, data):
+    def save_to_memory(self, data):
         """Saves the provided data to the memory JSON file."""
-        user_data_path = self._get_user_data_path(chat_id)
-        with open(user_data_path, "w") as file:
+        with open(self.memory_path, "w") as file:
             json.dump(data, file, indent=4)
 
     ################################################################################################################
@@ -57,8 +49,8 @@ class CactusMemory:
     # Set methods
     #
     ################################################################################################################
-    def set_reminder(self, chat_id, reminder):
-        user_data = self.get_user_data(chat_id)
+    def set_reminder(self, reminder):
+        user_data = self.get_user_data()
 
         # conver datetime to JSON compatible format
         if isinstance(reminder, dict) and "date_time" in reminder:
@@ -66,61 +58,54 @@ class CactusMemory:
                 reminder["date_time"] = reminder["date_time"].isoformat()
 
         user_data[self.user_reminders_key].append(reminder)
-        self.save_to_memory(chat_id, user_data)
+        self.save_to_memory(user_data)
 
-    def set_timer(self, chat_id, timer):
-        user_data = self.get_user_data(chat_id)
+    def set_timer(self, timer):
+        user_data = self.get_user_data()
 
         if isinstance(timer, dict) and "date_time" in timer:
             if isinstance(timer["date_time"], datetime):
                 timer["date_time"] = timer["date_time"].isoformat()
 
         user_data[self.user_timers_key].append(timer)
-        self.save_to_memory(chat_id, user_data)
+        self.save_to_memory(user_data)
 
-    def set_user_initialization_prompt(self, chat_id, prompt):
-        user_data = self.get_user_data(chat_id)
+    def set_user_initialization_prompt(self, prompt):
+        user_data = self.get_user_data()
         user_data[self.user_initialization_prompt_key] = prompt
-        self.save_to_memory(chat_id, user_data)
+        self.save_to_memory(user_data)
 
-    def set_user_name(self, chat_id, name):
-        user_data = self.get_user_data(chat_id)
+    def set_user_name(self, name):
+        user_data = self.get_user_data()
         user_data[self.user_name_key] = name
-        self.save_to_memory(chat_id, user_data)
+        self.save_to_memory(user_data)
 
-    def set_user_language_preference(self, chat_id, language_preference):
-        user_data = self.get_user_data(chat_id)
+    def set_chat_id(self, chat_id):
+        user_data = self.get_user_data()
+        user_data[self.user_chat_id_key] = chat_id
+        self.save_to_memory(user_data)
+
+    def set_user_language_preference(self, language_preference):
+        user_data = self.get_user_data()
         user_data[self.user_language_preference_key] = language_preference
-        self.save_to_memory(chat_id, user_data)
+        self.save_to_memory(user_data)
 
-    def set_user_voice_preference(self, chat_id, voice_preference):
-        user_data = self.get_user_data(chat_id)
+    def set_user_voice_preference(self, voice_preference):
+        user_data = self.get_user_data()
         user_data[self.user_voice_preference_key] = voice_preference
-        self.save_to_memory(chat_id, user_data)
+        self.save_to_memory(user_data)
 
     ################################################################################################################
     #
     # Get methods
     #
     ################################################################################################################
-    def get_user_data(self, chat_id):
-        self._ensure_memory_file(chat_id)
-        user_data_path = self._get_user_data_path(chat_id)
-        with open(user_data_path, "r") as file:
+    def get_user_data(self):
+        with open(self.memory_path, "r") as file:
             return json.load(file)
 
-    def get_all_users_data(self):
-        users_data = {}
-        for file in os.listdir(self.memory_folder):
-            file_path = os.path.join(self.memory_folder, file)
-            if file.endswith(".json"):
-                with open(file_path, "r", encoding="utf-8") as f:
-                    user_data = json.load(f)
-                users_data[file.replace(".json", "")] = user_data
-        return users_data
-
-    def get_user_reminders(self, chat_id):
-        user_data = self.get_user_data(chat_id)
+    def get_user_reminders(self):
+        user_data = self.get_user_data()
 
         reminders = user_data.get(self.user_reminders_key, [])
         # Convert date_time back to datetime object
@@ -133,8 +118,12 @@ class CactusMemory:
 
         return reminders
 
-    def get_user_timers(self, chat_id):
-        user_data = self.get_user_data(chat_id)
+    def get_user_chat_id(self):
+        user_data = self.get_user_data()
+        return user_data.get(self.user_chat_id_key, "")
+
+    def get_user_timers(self):
+        user_data = self.get_user_data()
 
         timers = user_data.get(self.user_timers_key, [])
         # Convert date_time back to datetime object
@@ -147,20 +136,20 @@ class CactusMemory:
 
         return timers
 
-    def get_user_initialization_prompt(self, chat_id):
+    def get_user_initialization_prompt(self):
         """Retrieves the user's initialization prompt."""
-        user_data = self.get_user_data(chat_id)
+        user_data = self.get_user_data()
         return user_data.get(self.user_initialization_prompt_key, "")
 
-    def get_user_name(self, chat_id):
+    def get_user_name(self):
         """Retrieves the user's name."""
-        user_data = self.get_user_data(chat_id)
+        user_data = self.get_user_data()
         return user_data.get(self.user_name_key, "")
 
-    def get_user_language_preference(self, chat_id):
-        user_data = self.get_user_data(chat_id)
+    def get_user_language_preference(self):
+        user_data = self.get_user_data()
         return user_data.get(self.user_language_preference_key, "")
 
-    def get_user_voice_preference(self, chat_id):
-        user_data = self.get_user_data(chat_id)
+    def get_user_voice_preference(self):
+        user_data = self.get_user_data()
         return user_data.get(self.user_voice_preference_key, "")
