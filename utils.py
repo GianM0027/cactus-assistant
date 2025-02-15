@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import re
+from prompts_and_constants import *
 
 def extract_between_braces(text):
     start = text.find('{')
@@ -13,15 +14,16 @@ def format_datetime_natural(date_time):
     month = date_time.strftime("%B")
     time = date_time.strftime("%H:%M")
 
-    return f"For {day} {month} at {time}. Is this correct?"
+    return f"For {day} {month} at {time}."
 
-#todo: check carefully (test)
-def extract_exact_datetime(llm_output, bot, chat_id):
+def extract_exact_datetime(llm_output):
+    # returns target date and message for the user
     time_type = llm_output.get("time_type")
     time_value = llm_output.get("time_value")
+    error_past_message = "Sorry, I can't set timers and reminders in the past, is there anything else I can do for you?"
 
     if time_value == "undefined":
-        return None
+        return None, None
 
     # consider seconds for the timer, don't consider seconds for reminders
     today = datetime.now().replace(microsecond=0)
@@ -30,10 +32,9 @@ def extract_exact_datetime(llm_output, bot, chat_id):
         # no reminders in the past and no reminders for less than 1 minute
         time_value_in_the_past = datetime.strptime(time_value, "%Y-%m-%d %H:%M") < datetime.now()
         if time_value_in_the_past:
-            bot.send_message(chat_id, "Sorry, you can't set a reminder in the past, is there anything else I can do for you?")
-            return None
+            return None, error_past_message
 
-        return datetime.strptime(time_value, "%Y-%m-%d %H:%M")
+        return datetime.strptime(time_value, "%Y-%m-%d %H:%M"), None
 
     elif time_type == "delay":
         match = re.match(r"(?:(\d+)y)?(?:(\d+)m)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?", time_value)
@@ -45,11 +46,9 @@ def extract_exact_datetime(llm_output, bot, chat_id):
 
             time_value_in_the_past = target_date < datetime.now()
             if time_value_in_the_past:
-                bot.send_message(chat_id,
-                                 "Sorry, you can't set a reminder in the past, is there anything else I can do for you?")
-                return None
+                return None, error_past_message
 
-            return target_date
+            return target_date, None
 
     elif time_type == "relative":
         parts = time_value.split(":")
@@ -63,11 +62,9 @@ def extract_exact_datetime(llm_output, bot, chat_id):
 
             time_value_in_the_past = target_datetime < datetime.now()
             if time_value_in_the_past:
-                bot.send_message(chat_id,
-                                 "Sorry, you can't set a reminder in the past, is there anything else I can do for you?")
-                return None
+                return None, error_past_message
 
-            return target_datetime
+            return target_datetime, None
 
         elif rel_type == "WEEKDAY":
             target_weekday = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].index(
@@ -76,7 +73,7 @@ def extract_exact_datetime(llm_output, bot, chat_id):
             if days_ahead == 0:
                 days_ahead = 7
 
-            return today + timedelta(days=days_ahead)
+            return today + timedelta(days=days_ahead), None
 
         elif rel_type == "WEEKDAY_AND_TIME":
             target_weekday, target_time_str = rel_value
@@ -86,9 +83,9 @@ def extract_exact_datetime(llm_output, bot, chat_id):
             days_ahead = (target_weekday - today.weekday()) % 7
             if days_ahead == 0 and datetime.combine(today.date(), target_time) <= today:
                 days_ahead = 7
-            return datetime.combine(today.date() + timedelta(days=days_ahead), target_time)
+            return datetime.combine(today.date() + timedelta(days=days_ahead), target_time), None
 
-    return None
+    return None, None
 
 
 def parse_time_delay(time_str):
