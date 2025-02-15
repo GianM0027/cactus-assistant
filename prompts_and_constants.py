@@ -15,7 +15,8 @@ NO_ACTION_REQUIRED_ID = "<<llm_answer>>"
 BOT_SENDER_ID = "bot"
 CACTUS_SENDER_ID = "cactus"
 
-SECONDS_DELAY_SENSOR_DATA = 60
+SECONDS_DELAY_SENSOR_DATA = 1
+SECONDS_DELAY_MIC_DATA = 1
 
 
 
@@ -49,8 +50,9 @@ def get_cactus_base_instructions(sender, temperature, humidity, user_name=None, 
             "- Perform all physical system functions.\n"
             "- Delete reminders and timers.\n"
             "- Set a preference for the assistant's voice (options: male/Italian, female/Italian, male/English, female/English).\n"
-            "- Set a username accessible to you.\n"
-            "- Set an initialization prompt that defines your behavior.\n\n"
+            "- Set a username.\n"
+            "- Set an initialization prompt that defines your behavior.\n"
+            "- Plot sensor data coming from the physical system (temperature and humidity from the past 1-7-15-30 days)\n\n"
 
             "## INTERACTION RULES\n"
             "- You will be informed whether the user is interacting via the physical system or the Telegram bot.\n"
@@ -91,7 +93,8 @@ def get_cactus_base_instructions_short(sender, temperature, humidity, user_name=
             "- All physical system functions.\n"
             "- Delete reminders and timers.\n"
             "- Adjust voice settings (male/female, Italian/English).\n"
-            "- Set a username and initialization prompt.\n\n"
+            "- Set a username and initialization prompt.\n"
+            "- Plot temperature and humidity data coming from the physical system\n\n"
 
             "## RULES\n"
             "- Redirect users if a request isn't supported on the current platform.\n\n"
