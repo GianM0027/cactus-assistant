@@ -170,25 +170,6 @@ class AssistantManager:
 
             self.bot.send_message(chat_id=message.chat.id, text=timer_choice, reply_markup=markup)
 
-        @self.bot.message_handler(commands=['voice_preference'])
-        def set_voice_preference(message):
-            markup = InlineKeyboardMarkup()
-            markup.row_width = 1
-            options = ["english-male", "english-female", "italian-male", "italian-female"]
-
-            markup.add(
-                *[InlineKeyboardButton(option, callback_data="set_voice_preference_" + str(option)) for option in
-                  options]
-            )
-
-            self.bot.send_message(chat_id=message.chat.id, text="Which one do you prefer?", reply_markup=markup)
-
-        @self.bot.message_handler(commands=['show_voice_preference'])
-        def show_voice_preference(message):
-            voice_preference = self.cactus.get_user_voice_preference()
-            user_answer = f"Your voice preference is: '{voice_preference}'"
-            self.bot.send_message(message.chat.id, user_answer)
-
         @self.bot.message_handler(commands=['show_username'])
         def show_username(message):
             username = self.cactus.get_user_name()
@@ -226,13 +207,6 @@ class AssistantManager:
                 timer_id = call.data.replace("delete_timer_", "", 1)
                 self.cactus.remove_timer(timer_id=timer_id)
                 self.bot.send_message(chat_id, f"Timer deleted. 🗑️")
-
-            elif call.data.startswith("set_voice_preference_"):
-                language_voice = call.data.replace("set_voice_preference_", "", 1)
-                language, voice = language_voice.split("-")
-                self.cactus.set_user_language_preference(language_preference=language)
-                self.cactus.set_user_voice_preference(voice_preference=voice)
-                self.bot.send_message(chat_id, f"Voice preference set! 🗣️️")
 
             elif call.data.startswith("plot_humidity_"):
                 time = call.data.replace("plot_humidity_", "", 1)
@@ -346,8 +320,10 @@ class AssistantManager:
             response = requests.get(f"http://{esp32_ip}/sensor", timeout=5)
             response.raise_for_status()
 
-            temperature = response.text["temperature"]
-            humidity = response.text["humidity"]
+            response_data = response.json()
+            temperature = int(response_data.get("temperature", 0))
+            humidity = int(response_data.get("humidity", 0))
+
         except requests.exceptions.Timeout:
             print("ERROR: Response timeout while fetching sensor data.")
         except requests.exceptions.RequestException as e:
@@ -465,9 +441,6 @@ class AssistantManager:
             await asyncio.sleep(1)
 
     def cactus_speak(self, response):
-        user_language_preference = self.cactus.get_user_language_preference()
-        user_voice_preference = self.cactus.get_user_voice_preference()
-
         payload = {"phrasetospeak": response}
 
         try:

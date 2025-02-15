@@ -57,20 +57,8 @@ class Cactus:
     def get_user_name(self):
         return self.cactus_memory.get_user_name()
 
-    def get_user_voice_preference(self):
-        return self.cactus_memory.get_user_voice_preference()
-
     def get_user_chat_id(self):
         return self.cactus_memory.get_user_chat_id()
-
-    def get_user_language_preference(self):
-        return self.cactus_memory.get_user_language_preference()
-
-    def set_user_voice_preference(self, voice_preference):
-        return self.cactus_memory.set_user_voice_preference(voice_preference=voice_preference)
-
-    def set_user_language_preference(self, language_preference):
-        return self.cactus_memory.set_user_language_preference(language_preference=language_preference)
 
     def get_string_user_info(self):
         user_name = self.cactus_memory.get_user_name()

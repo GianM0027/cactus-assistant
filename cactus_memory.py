@@ -16,8 +16,6 @@ class CactusMemory:
         self.user_initialization_prompt_key = "user_initialization_prompt"
         self.user_name_key = "user_name"
         self.user_timers_key = "timers"
-        self.user_language_preference_key = "language_preference"
-        self.user_voice_preference_key = "voice_preference"
         self.user_chat_id_key = "chat_id"
 
         self.user_data_structure = {
@@ -25,8 +23,6 @@ class CactusMemory:
             self.user_timers_key: [],
             self.user_initialization_prompt_key: "",
             self.user_name_key: "",
-            self.user_language_preference_key: "english",
-            self.user_voice_preference_key: "male",
             self.user_chat_id_key: "",
         }
 
@@ -85,16 +81,6 @@ class CactusMemory:
         user_data[self.user_chat_id_key] = chat_id
         self.save_to_memory(user_data)
 
-    def set_user_language_preference(self, language_preference):
-        user_data = self.get_user_data()
-        user_data[self.user_language_preference_key] = language_preference
-        self.save_to_memory(user_data)
-
-    def set_user_voice_preference(self, voice_preference):
-        user_data = self.get_user_data()
-        user_data[self.user_voice_preference_key] = voice_preference
-        self.save_to_memory(user_data)
-
     ################################################################################################################
     #
     # Get methods
@@ -145,11 +131,3 @@ class CactusMemory:
         """Retrieves the user's name."""
         user_data = self.get_user_data()
         return user_data.get(self.user_name_key, "")
-
-    def get_user_language_preference(self):
-        user_data = self.get_user_data()
-        return user_data.get(self.user_language_preference_key, "")
-
-    def get_user_voice_preference(self):
-        user_data = self.get_user_data()
-        return user_data.get(self.user_voice_preference_key, "")
