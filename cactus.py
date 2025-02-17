@@ -1,11 +1,7 @@
 import os
 
-from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
-import torch
-import librosa
 from cactus_memory import CactusMemory
 import google.generativeai as genai
-from prompts_and_constants import *
 from deepgram import DeepgramClient, PrerecordedOptions, FileSource
 
 class Cactus:
