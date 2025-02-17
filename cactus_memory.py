@@ -1,11 +1,7 @@
-import json
 import os
+import json
 from datetime import datetime
 
-import numpy as np
-
-
-# todo: aggiungere last interaction tag, if a file havent been accessed in X time, delete it
 
 class CactusMemory:
 
@@ -36,7 +32,6 @@ class CactusMemory:
     #
     ################################################################################################################
     def save_to_memory(self, data):
-        """Saves the provided data to the memory JSON file."""
         with open(self.memory_path, "w") as file:
             json.dump(data, file, indent=4)
 
@@ -123,11 +118,9 @@ class CactusMemory:
         return timers
 
     def get_user_initialization_prompt(self):
-        """Retrieves the user's initialization prompt."""
         user_data = self.get_user_data()
         return user_data.get(self.user_initialization_prompt_key, "")
 
     def get_user_name(self):
-        """Retrieves the user's name."""
         user_data = self.get_user_data()
         return user_data.get(self.user_name_key, "")

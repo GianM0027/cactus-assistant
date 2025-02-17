@@ -1,6 +1,8 @@
-from datetime import datetime, timedelta
 import re
+from datetime import timedelta
+
 from prompts_and_constants import *
+
 
 def extract_between_braces(text):
     start = text.find('{')
@@ -9,12 +11,14 @@ def extract_between_braces(text):
         return text[start:end + 1]
     return None
 
+
 def format_datetime_natural(date_time):
     day = date_time.strftime("%d").lstrip("0")
     month = date_time.strftime("%B")
     time = date_time.strftime("%H:%M")
 
     return f"For {day} {month} at {time}."
+
 
 def extract_exact_datetime(llm_output):
     # returns target date and message for the user
@@ -118,7 +122,7 @@ def parse_time_delay(time_str):
     else:
         return ', '.join(parts[:-1]) + ' and ' + parts[-1]
 
+
 def get_current_datetime():
     now = datetime.now()
     return f"Today is {now.day} {now.strftime('%B')} {now.year}, it's currently {now.hour}:{now.minute:02d}"
-

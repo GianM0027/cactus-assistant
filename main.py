@@ -1,7 +1,7 @@
-from assistantManager import AssistantManager
 import os
-from dotenv import load_dotenv
 import certifi
+from dotenv import load_dotenv
+from assistantManager import AssistantManager
 from influxdb_client_3 import InfluxDBClient3, flight_client_options
 
 

@@ -1,8 +1,14 @@
+<<<<<<< Updated upstream
 import os
 
 from cactus_memory import CactusMemory
 import google.generativeai as genai
+=======
+import google.generativeai as genai
+from cactus_memory import CactusMemory
+>>>>>>> Stashed changes
 from deepgram import DeepgramClient, PrerecordedOptions, FileSource
+
 
 class Cactus:
     def __init__(self, gemini_token, deepgram_token):
@@ -80,11 +86,10 @@ class Cactus:
 
         return intro_prompt + optional_info
 
-
     def get_gemini_response(self, request, initialization_prompt=""):
         genai.configure(api_key=self.gemini_token)
         model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(initialization_prompt+request)
+        response = model.generate_content(initialization_prompt + request)
         return response.text
 
     def speech_to_text(self, audio):
@@ -108,4 +113,3 @@ class Cactus:
 
         except Exception as e:
             print(f"Exception: {e}")
-

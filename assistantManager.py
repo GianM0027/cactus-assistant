@@ -1,23 +1,18 @@
-import asyncio
-import json
+import io
 import os
-import time
-import requests
-
-import numpy as np
+import json
 import telebot
+import asyncio
+import requests
+import threading
+from utils import *
+import pandas as pd
+from cactus import Cactus
+from datetime import datetime
+import matplotlib.pyplot as plt
+from influxdb_client_3 import Point
 from telebot.apihelper import ApiTelegramException
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-
-from cactus import Cactus
-from prompts_and_constants import *
-from utils import *
-from datetime import datetime
-import threading
-from influxdb_client_3 import Point
-import matplotlib.pyplot as plt
-import pandas as pd
-import io
 
 
 class AssistantManager:
@@ -188,7 +183,7 @@ class AssistantManager:
 
             else:
                 self.bot.send_message(message.chat.id,
-                                  f"You did not set an initialization prompt. You can do so with the command \\init_prompt")
+                                      f"You did not set an initialization prompt. You can do so with the command \\init_prompt")
 
         @self.bot.callback_query_handler(func=lambda call: True)
         def handle_callback_query(call):
@@ -265,38 +260,6 @@ class AssistantManager:
                 print(f"Failed to fetch sensor data: {e}")
 
             await asyncio.sleep(SECONDS_DELAY_SENSOR_DATA)
-
-    def get_influxdb_data(self, days, data):
-        query = f"SELECT time, {data} FROM 'sensor' WHERE time >= now() - interval '{days} days'"
-        df = self.influxdb_client.query(query=query, database="cactus_sensor_data", language='sql', mode="pandas")
-        return df
-
-    def send_plot_to_telegram(self, chat_id, days, data):
-        df_to_plot = self.get_influxdb_data(days=days, data=data)
-
-        # Convert 'time' to datetime
-        df_to_plot["time"] = pd.to_datetime(df_to_plot["time"])
-
-        plt.figure(figsize=(10, 6))
-        label = "Temperature" if data == "temperature" else "Humidity"
-        unit = " (°C)" if data == "temperature" else " (%)"
-        plt.plot(df_to_plot["time"], df_to_plot[data], marker='o', linestyle='-', label=label + unit)
-
-        # Formatting
-        plt.xlabel("Time")
-        plt.ylabel(label)
-        plt.title(f"{label} Over {days} day(s)")
-        plt.xticks(rotation=45)
-        plt.legend()
-        plt.grid()
-
-        buf = io.BytesIO()
-        plt.savefig(buf, format="png")
-        buf.seek(0)
-        plt.close()
-
-        # Send the image to Telegram
-        self.bot.send_photo(chat_id, photo=buf)
 
     ###############################################################################################
     #
@@ -380,7 +343,7 @@ class AssistantManager:
                 self.cactus_speak(user_message)
 
         if timer_date_time:
-            timer_id = len(self.cactus.get_user_timers())+1
+            timer_id = len(self.cactus.get_user_timers()) + 1
             new_timer = {"date_time": timer_date_time, "timer_id": timer_id}
             self.cactus.set_timer(timer=new_timer)
 
@@ -413,9 +376,9 @@ class AssistantManager:
                     if reminder_time <= now:
                         try:
                             if chat_id:
-                                self.bot.send_message(reminder["chat_id"], f"⏰ Reminder: {reminder['reminder']}")
+                                self.bot.send_message(chat_id, f"⏰ Reminder: {reminder['reminder']}")
                         except ApiTelegramException:
-                            print(f"Bad Request: chat {reminder['chat_id']} not found")
+                            print(f"Bad Request: chat {chat_id} not found")
 
                         cactus_alert = f"Hey {username}, I'm here to remind you: {reminder['reminder']}"
                         self.cactus_speak(cactus_alert)
@@ -430,15 +393,52 @@ class AssistantManager:
                     if timer_time <= now:
                         try:
                             if chat_id:
-                                self.bot.send_message(timer["chat_id"], f"⏰ Time's up! ⏰")
+                                self.bot.send_message(chat_id, f"⏰ Time's up! ⏰")
                         except ApiTelegramException:
-                            print(f"Bad Request: chat {timer['chat_id']} not found")
+                            print(f"Bad Request: chat {chat_id} not found")
 
                         cactus_alert = f"Hey {username}, time's up!"
                         self.cactus_speak(cactus_alert)
                         self.cactus.remove_timer(timer_id=timer["timer_id"])
 
             await asyncio.sleep(1)
+
+    ###############################################################################################
+    #
+    # Auxiliary Functions
+    #
+    ###############################################################################################
+    def get_influxdb_data(self, days, data):
+        query = f"SELECT time, {data} FROM 'sensor' WHERE time >= now() - interval '{days} days'"
+        df = self.influxdb_client.query(query=query, database="cactus_sensor_data", language='sql', mode="pandas")
+        return df
+
+    def send_plot_to_telegram(self, chat_id, days, data):
+        df_to_plot = self.get_influxdb_data(days=days, data=data)
+
+        # Convert 'time' to datetime
+        df_to_plot["time"] = pd.to_datetime(df_to_plot["time"])
+
+        plt.figure(figsize=(10, 6))
+        label = "Temperature" if data == "temperature" else "Humidity"
+        unit = " (°C)" if data == "temperature" else " (%)"
+        plt.plot(df_to_plot["time"], df_to_plot[data], marker='o', linestyle='-', label=label + unit)
+
+        # Formatting
+        plt.xlabel("Time")
+        plt.ylabel(label)
+        plt.title(f"{label} Over {days} day(s)")
+        plt.xticks(rotation=45)
+        plt.legend()
+        plt.grid()
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png")
+        buf.seek(0)
+        plt.close()
+
+        # Send the image to Telegram
+        self.bot.send_photo(chat_id, photo=buf)
 
     def cactus_speak(self, response):
         payload = {"phrasetospeak": response}
