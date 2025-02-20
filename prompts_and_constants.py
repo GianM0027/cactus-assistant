@@ -1,5 +1,8 @@
 from datetime import datetime
-from utils import get_current_datetime
+
+def get_current_datetime():
+    now = datetime.now()
+    return f"Today is {now.day} {now.strftime('%B')} {now.year}, it's currently {now.hour}:{now.minute:02d}"
 
 ###############################################################################################################
 #
@@ -16,6 +19,9 @@ CACTUS_SENDER_ID = "cactus"
 
 SECONDS_DELAY_SENSOR_DATA = 1
 SECONDS_DELAY_MIC_DATA = 1
+
+SECONDS_DELAY_SENSOR_ESP_ANSWER = 10
+
 
 INITIAL_GREETING = ("Hi! I am your smart cactus! What can I do for you?")
 ASK_INITIALIZATION_PROMPT = "Please, enter your initialization prompt"

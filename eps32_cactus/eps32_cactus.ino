@@ -31,14 +31,14 @@ DHT dht(DHTPIN, DHTTYPE);
 #define I2S_LRC       25
 
 // Language for TTS (Text-to-Speech)
-#define TTS_GOOGLE_LANGUAGE "it-IT" // it-IT en-GB fr-FR es-ES
+#define TTS_GOOGLE_LANGUAGE "en-GB" // it-IT en-GB fr-FR es-ES
 
 // Button pin to start audio recording
 #define BUTTON_PIN 4
 
 // Wi-Fi network name and password
-#define SSID_WIFI "House of Pong #Gast" //Mauro's iPhone Big Chungus Leonardo Hotel
-#define PSW "pingpong020" //giggino123 123abc!@#ABC
+#define SSID_WIFI "yourwifi" 
+#define PSW "pws" 
 
 // Name of the audio file
 #define AUDIO_FILE "/Audio.wav"  
@@ -114,7 +114,7 @@ void setup() {
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
     
   // Set Volume
-  audio.setVolume(8);  
+  audio.setVolume(15);  
 }
  
 void loop() {
@@ -199,7 +199,7 @@ void speakMessage() {
         server.send(200, "text/plain", "Message played");
   } else {
         server.send(400, "text/plain", "Error with 'phrasetospeak' parameter");
-    }
+  }
 }
 
 // Handle sending temperature & humidity data as JSON
@@ -234,6 +234,7 @@ void sendWavFile(){
     
     // Stream the file
     server.streamFile(wavFile, "audio/wav");
+    server.send(200, "text/plain", "Audio sent!");
     
     wavFile.close();
     if (SD.exists(AUDIO_FILE)) 

@@ -7,12 +7,14 @@ import requests
 import threading
 from utils import *
 import pandas as pd
-from cactus import Cactus
+from cactus import *
 from datetime import datetime
 import matplotlib.pyplot as plt
 from influxdb_client_3 import Point
 from telebot.apihelper import ApiTelegramException
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+import plotly.graph_objs as go
+import plotly.io as pio
 
 
 class AssistantManager:
@@ -246,12 +248,13 @@ class AssistantManager:
             try:
                 esp32_ip = os.getenv('ESP32_IP', '')
 
-                response = requests.get(f"http://{esp32_ip}/microphone", timeout=5)
+                response = requests.get(f"http://{esp32_ip}/microphone", timeout=SECONDS_DELAY_SENSOR_ESP_ANSWER)
                 response.raise_for_status()
 
                 content_type = response.headers.get("Content-Type", "")
                 if "audio/wav" in content_type:
                     text = self.cactus.speech_to_text(response.content)
+                    print("Testo LLM: ", text)
                     self.handle_user_request(text, CACTUS_SENDER_ID)
 
             except requests.exceptions.Timeout:
@@ -280,7 +283,7 @@ class AssistantManager:
         try:
             esp32_ip = os.getenv('ESP32_IP', '')
 
-            response = requests.get(f"http://{esp32_ip}/sensor", timeout=5)
+            response = requests.get(f"http://{esp32_ip}/sensor", timeout=SECONDS_DELAY_SENSOR_ESP_ANSWER)
             response.raise_for_status()
 
             response_data = response.json()
@@ -413,7 +416,7 @@ class AssistantManager:
         df = self.influxdb_client.query(query=query, database="cactus_sensor_data", language='sql', mode="pandas")
         return df
 
-    def send_plot_to_telegram(self, chat_id, days, data):
+    def send_plot_to_telegramOld(self, chat_id, days, data):
         df_to_plot = self.get_influxdb_data(days=days, data=data)
 
         # Convert 'time' to datetime
@@ -440,13 +443,55 @@ class AssistantManager:
         # Send the image to Telegram
         self.bot.send_photo(chat_id, photo=buf)
 
+    def send_plot_to_telegram(self, chat_id, days, data):
+        df_to_plot = self.get_influxdb_data(days=days, data=data)
+
+        # Convert 'time' to datetime
+        df_to_plot["time"] = pd.to_datetime(df_to_plot["time"])
+
+        # Determine the label and unit based on the data
+        label = "Temperature" if data == "temperature" else "Humidity"
+        unit = " (°C)" if data == "temperature" else " (%)"
+
+        # Create a Plotly figure
+        fig = go.Figure()
+
+        # Add line and marker
+        fig.add_trace(go.Scatter(
+            x=df_to_plot["time"],
+            y=df_to_plot[data],
+            mode='lines+markers',
+            name=label + unit,
+            line=dict(shape='linear'),
+            marker=dict(symbol='circle', size=8)
+        ))
+
+        # Formatting the layout
+        fig.update_layout(
+            title=f"{label} Over {days} day(s)",
+            xaxis_title="Time",
+            yaxis_title=label + unit,
+            xaxis=dict(tickformat='%Y-%m-%d %H:%M', tickangle=45, showgrid=True, gridcolor='lightgray', gridwidth=0.5),
+            yaxis=dict(showgrid=True, gridcolor='lightgray', gridwidth=0.5),
+            legend=dict(x=0, y=1, traceorder="normal"),
+            plot_bgcolor='white'
+        )
+
+        # Convert plot to image buffer
+        buf = io.BytesIO()
+        pio.write_image(fig, buf, format='png')
+        buf.seek(0)
+
+        # Send the image to Telegram
+        self.bot.send_photo(chat_id, photo=buf)
+
     def cactus_speak(self, response):
         payload = {"phrasetospeak": response}
 
         try:
             esp32_ip = os.getenv('ESP32_IP', '')
 
-            response = requests.post(f"http://{esp32_ip}/message_speak", data=payload, timeout=5)
+            response = requests.post(f"http://{esp32_ip}/message_speak", data=payload, timeout=SECONDS_DELAY_SENSOR_ESP_ANSWER)
             response.raise_for_status()
 
             try:
