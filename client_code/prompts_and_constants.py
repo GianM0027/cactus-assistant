@@ -84,12 +84,14 @@ def get_cactus_base_instructions(sender, temperature, humidity, user_name=None, 
     )
 
 
-def get_cactus_base_instructions_short(sender, temperature, humidity, user_name=None, user_initialization_prompt=None):
+def get_cactus_base_instructions_short(sender, temperature, humidity, user_name=None, user_initialization_prompt=None, reminders=None, timers=None):
     user_intro = f"The user's name is {user_name}. " if user_name else ""
     sender_info = f"Request sent from {'Telegram bot' if sender == BOT_SENDER_ID else 'physical system'}."
     init_prompt = f"Follow the user's initialization prompt: {user_initialization_prompt}. " if user_initialization_prompt else ""
     temp_info = f"- Currently it is {temperature} degrees" if temperature else ""
     hum_info = f"- Currently the humidity is {humidity}%" if humidity else ""
+    user_reminders = f"Reminders are: {str(reminders)}" if reminders else "User has no active reminders"
+    user_timers = f"User has {len(timers)} active timers" if timers else "User has no active timers"
     date_time_info = get_current_datetime()
 
     return (
@@ -121,7 +123,9 @@ def get_cactus_base_instructions_short(sender, temperature, humidity, user_name=
 
         "## USER-SPECIFIC INFORMATION\n"
         f"- {user_intro}\n"
-        f"- {init_prompt}\n\n"
+        f"- {init_prompt}\n"
+        f"- {user_reminders}\n"
+        f"- {user_timers}\n"
     )
 
 def get_reminder_check_prompt(user_request):

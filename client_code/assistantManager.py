@@ -89,29 +89,34 @@ class AssistantManager:
             user_timers = self.cactus.get_user_timers()
 
             if len(user_timers) > 0:
-                timers_message = "Here are your reminders:\n"
+                timers_message = "Here are your timers:\n"
                 for timer in user_timers:
                     timer_date = timer["date_time"].strftime("%d/%m/%Y %H:%M")
                     timers_message += f"\n- {timer_date}"
             else:
-                timers_message = "You have no reminders"
+                timers_message = "You have no timers"
             self.bot.send_message(message.chat.id, timers_message)
 
         @self.bot.message_handler(commands=['delete_reminder'])
         def delete_reminder(message):
             user_reminders = self.cactus.get_user_reminders()
-            reminder_choice = "Which reminder do you want to delete?"
 
-            markup = InlineKeyboardMarkup()
-            markup.row_width = 1
-            markup.add(
-                *[InlineKeyboardButton(
-                    reminder["reminder"] + " " + reminder["date_time"].strftime("%d/%m/%Y %H:%M"),
-                    callback_data="delete_reminder_" + str(reminder["reminder_id"])
-                ) for reminder in user_reminders]
-            )
+            if len(user_reminders) > 0:
+                reminder_choice = "Which reminder do you want to delete?"
 
-            self.bot.send_message(chat_id=message.chat.id, text=reminder_choice, reply_markup=markup)
+                markup = InlineKeyboardMarkup()
+                markup.row_width = 1
+                markup.add(
+                    *[InlineKeyboardButton(
+                        reminder["reminder"] + " " + reminder["date_time"].strftime("%d/%m/%Y %H:%M"),
+                        callback_data="delete_reminder_" + str(reminder["reminder_id"])
+                    ) for reminder in user_reminders]
+                )
+
+                self.bot.send_message(chat_id=message.chat.id, text=reminder_choice, reply_markup=markup)
+            else:
+                self.bot.send_message(chat_id=message.chat.id, text="You have no reminders")
+                
 
         @self.bot.message_handler(commands=['plot_temperature'])
         def show_temperature(message):
@@ -154,18 +159,23 @@ class AssistantManager:
         @self.bot.message_handler(commands=['delete_timer'])
         def delete_timer(message):
             user_timers = self.cactus.get_user_timers()
-            timer_choice = "Which timer do you want to delete?"
 
-            markup = InlineKeyboardMarkup()
-            markup.row_width = 1
-            markup.add(
-                *[InlineKeyboardButton(
-                    timer["date_time"].strftime("%d/%m/%Y %H:%M"),
-                    callback_data="delete_timer_" + str(timer["timer_id"])
-                ) for timer in user_timers]
-            )
+            if len(user_timers) > 0:
+                timer_choice = "Which timer do you want to delete?"
 
-            self.bot.send_message(chat_id=message.chat.id, text=timer_choice, reply_markup=markup)
+                markup = InlineKeyboardMarkup()
+                markup.row_width = 1
+                markup.add(
+                    *[InlineKeyboardButton(
+                        timer["date_time"].strftime("%d/%m/%Y %H:%M"),
+                        callback_data="delete_timer_" + str(timer["timer_id"])
+                    ) for timer in user_timers]
+                )
+
+                self.bot.send_message(chat_id=message.chat.id, text=timer_choice, reply_markup=markup)
+
+            else:
+                self.bot.send_message(chat_id=message.chat.id, text="You have no timers")
 
         @self.bot.message_handler(commands=['show_username'])
         def show_username(message):
@@ -260,7 +270,7 @@ class AssistantManager:
             except requests.exceptions.Timeout:
                 print("ERROR: Response timeout while fetching sensor data.")
             except requests.exceptions.RequestException as e:
-                print(f"Failed to fetch sensor data: {e}")
+                print("No new data available")
 
             await asyncio.sleep(SECONDS_DELAY_SENSOR_DATA)
 
@@ -509,10 +519,12 @@ class AssistantManager:
 
     def handle_user_request(self, message, sender):
         if sender == BOT_SENDER_ID:
+            print("\nMessage coming from Telegram Bot")
             chat_id = message.chat.id
             message = message.text
             self.cactus.set_chat_id(chat_id)
         else:
+            print("\nMessage coming from physical device")
             chat_id = self.cactus.get_user_chat_id()
 
         # user just entered the new initialization prompt
@@ -536,6 +548,8 @@ class AssistantManager:
             # check if an action is required
             action_id = self.action_is_required(request=message)
 
+            print(f"\nUser request classified as {action_id}")
+
             # user asked to set reminder
             if REMINDER_ACTION_ID in action_id:
                 self.set_reminder(message, chat_id, sender)
@@ -552,11 +566,15 @@ class AssistantManager:
 
                 # user asked for information about its data
                 if SYSTEM_INFO_ID in action_id:
+                    user_timers = self.cactus.get_user_timers()
+                    user_reminders = self.cactus.get_user_reminders()
                     system_initialization_prompt = get_cactus_base_instructions_short(sender=sender,
                                                                                       user_name=username,
                                                                                       temperature=temperature,
                                                                                       humidity=humidity,
-                                                                                      user_initialization_prompt=user_init_prompt)
+                                                                                      user_initialization_prompt=user_init_prompt,
+                                                                                      timers=user_timers,
+                                                                                      reminders=user_reminders)
                     user_info = self.cactus.get_string_user_info()
                     init_prompt = system_initialization_prompt + user_info + intro_to_user_message
                     llm_response = self.cactus.get_gemini_response(request=message,
